@@ -26,4 +26,37 @@ def call(Map params = [:]) {
     echo "Image Tag: ${imageTag}"
     echo "Registry URL: ${registryUrl}"
     echo "Push to Registry: ${pushToRegistry}"
+
+
+    try {
+        echo "🔨 Building application Docker image..."
+
+        def fullImageName = registryUrl ? "${registryUrl}/${imageName}:${imageTag}" : "${imageName}:${imageTag}"
+
+        if(!fileExists(dockerfilePath)) {
+            error "Dockerfile not found at path: ${dockerfilePath}"
+        }
+
+        // Build image 
+        def buildImage = docker.build(fullImageName, "-f ${dockerfilePath} ${buildContext}")
+
+        echo "✅ Successfully built Docker image: ${fullImageName}"
+
+        return [
+                success: true,
+                imageName: fullImageName,
+                pushed: pushToRegistry
+            ]
+    } catch (Exception e) {
+        echo "❌ Build failed: ${e.getMessage()}"
+        return [
+            success: false,
+            error: e.getMessage(),
+            imageName: null,
+            imageId: null,
+            imageSize: null,
+            buildDuration: null,
+            pushed: false
+        ]
+    }
 }
