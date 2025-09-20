@@ -49,6 +49,7 @@ def call(Map params = [:]) {
             ]
     } catch (Exception e) {
         echo "❌ Build failed: ${e.getMessage()}"
+        error("Docker build failed: ${e.getMessage()}")
         return [
             success: false,
             error: e.getMessage(),
