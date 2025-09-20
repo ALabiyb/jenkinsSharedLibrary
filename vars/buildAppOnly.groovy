@@ -28,66 +28,66 @@ def call(Map params = [:]) {
     echo "Push to Registry: ${pushToRegistry}"
     echo "Git Author: ${gitAuthor}"
 
-    try {
-        stage('Build Application Image') {
-            echo "🔨 Building application Docker image..."
-            // Build the application Docker image
-            def fullImageName = registryUrl ? "${registryUrl}/${imageName}:${imageTag}" : "${imageName}:${imageTag}"
+//     try {
+//         stage('Build Application Image') {
+//             echo "🔨 Building application Docker image..."
+//             // Build the application Docker image
+//             def fullImageName = registryUrl ? "${registryUrl}/${imageName}:${imageTag}" : "${imageName}:${imageTag}"
 
-            // Validate Dockerfile exists
-            if (!fileExists(dockerfilePath)) {
-                error "Dockerfile not found at path: ${dockerfilePath}"
-            }
+//             // Validate Dockerfile exists
+//             if (!fileExists(dockerfilePath)) {
+//                 error "Dockerfile not found at path: ${dockerfilePath}"
+//             }
 
-            // Build the Docker image
-            def buildImage = docker.build(fullImageName, "-f ${dockerfilePath} ${buildContext}")
-//            def buildResult = buildDockerImage(fullImageName, dockerfilePath, buildContext, buildArgs)
+//             // Build the Docker image
+//             def buildImage = docker.build(fullImageName, "-f ${dockerfilePath} ${buildContext}")
+// //            def buildResult = buildDockerImage(fullImageName, dockerfilePath, buildContext, buildArgs)
 
-//            if (!buildResult.success) {
-//                error "Failed to build Docker image: ${buildResult.error}"
-//            }
+// //            if (!buildResult.success) {
+// //                error "Failed to build Docker image: ${buildResult.error}"
+// //            }
 
-            echo "✅ Successfully built Docker image: ${fullImageName}"
+//             echo "✅ Successfully built Docker image: ${fullImageName}"
 
             /// Push to registry if requested
-            if (pushToRegistry && registryUrl) {
-                if (registryCredentialsId) {
-                    docker.withRegistry("https://${registryUrl}", registryCredentialsId) {
-                        dockerImage.push()
-                        echo "✅ Successfully pushed to registry: ${registryUrl}"
-                    }
-                } else {
-                    dockerImage.push()
-                    echo "✅ Successfully pushed to registry: ${registryUrl}"
-                }
+            // if (pushToRegistry && registryUrl) {
+            //     if (registryCredentialsId) {
+            //         docker.withRegistry("https://${registryUrl}", registryCredentialsId) {
+            //             dockerImage.push()
+            //             echo "✅ Successfully pushed to registry: ${registryUrl}"
+            //         }
+            //     } else {
+            //         dockerImage.push()
+            //         echo "✅ Successfully pushed to registry: ${registryUrl}"
+            //     }
 
-                // Remove local image after push if requested
-                if (removeAfterPush) {
-                    sh "docker rmi ${fullImageName} || true"
-                    echo "🗑️ Removed local image: ${fullImageName}"
-                }
-            }
+            //     // Remove local image after push if requested
+            //     if (removeAfterPush) {
+            //         sh "docker rmi ${fullImageName} || true"
+            //         echo "🗑️ Removed local image: ${fullImageName}"
+            //     }
+            // }
 
             // Get image info for return
 //            def imageInfo = getImageInfo(fullImageName)
 
-            return [
-                success: true,
-                imageName: fullImageName,
-                pushed: pushToRegistry
-            ]
-        }
+    //         return [
+    //             success: true,
+    //             imageName: fullImageName,
+    //             pushed: pushToRegistry
+    //         ]
+    //     }
 
-    } catch (Exception e) {
-        echo "❌ Build failed: ${e.getMessage()}"
-        return [
-            success: false,
-            error: e.getMessage(),
-            imageName: null,
-            imageId: null,
-            imageSize: null,
-            buildDuration: null,
-            pushed: false
-        ]
-    }
+    // } catch (Exception e) {
+    //     echo "❌ Build failed: ${e.getMessage()}"
+    //     return [
+    //         success: false,
+    //         error: e.getMessage(),
+    //         imageName: null,
+    //         imageId: null,
+    //         imageSize: null,
+    //         buildDuration: null,
+    //         pushed: false
+    //     ]
+    // }
 }
