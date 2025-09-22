@@ -179,9 +179,7 @@ def getStartTemplate(String status) {
             .header { background: linear-gradient(135deg, {{STATUS_COLOR}}, {{STATUS_COLOR}}CC); color:white; padding:30px 20px; text-align:center; }
             .status-badge { background:rgba(255,255,255,0.2); padding:8px 16px; border-radius:20px; display:inline-block; margin-bottom:10px; font-weight:bold; }
             .content { padding:30px; line-height:1.6; }
-            .info-grid { display:grid; grid-template-columns:150px 1fr; gap:15px; margin:20px 0; }
-            .info-label { font-weight:bold; color:#495057; background:#e9ecef; padding:10px; border-radius:5px; }
-            .info-value { padding:10px; background:#f8f9fa; border-radius:5px; border-left:4px solid {{STATUS_COLOR}}; }
+            .info-details { background: #00b1f733; border:1px solid #f5c6cb; border-radius:8px; padding:20px; margin:20px 0; }
             .button { display:inline-block; background: linear-gradient(135deg, {{STATUS_COLOR}}, {{STATUS_COLOR}}CC); color:white; padding:12px 25px; text-decoration:none; border-radius:25px; font-weight:bold; margin:20px 0; }
         </style>
     </head>
@@ -194,13 +192,13 @@ def getStartTemplate(String status) {
             </div>
             <div class="content">
                 <p>Hello! A Jenkins pipeline has been {{STATUS_TEXT}}.</p>
-                <p><strong>Here are the details:</strong></p>
-                <div class="info-grid">
-                    <p><strong>Job Name:</strong>{{JOB_NAME}}</p>
+                <div class="info-details">
+                    <p><strong>Here are the details:</strong></p>
+                    <p><strong>Job Name:</strong> {{JOB_NAME}}</p>
                     <p><strong>Build Number:</strong> #{{BUILD_NUMBER}}</p>
                     <p><strong>Branch:</strong> {{BRANCH}}</p>
                     <p><strong>Triggered By:</strong> {{TRIGGERED_BY}}</p>
-                    <p><strong>Commit Message:</strong>{{GIT_COMMIT}}</p>
+                    <p><strong>Commit Message:</strong> {{GIT_COMMIT}}</p>
                 </div>
                 <a href="{{BUILD_URL}}" class="button">{{STATUS_ICON}} View Build</a>
             </div>
@@ -286,7 +284,7 @@ def getFailureTemplate(String status) {
                     <p><strong>Branch:</strong> {{BRANCH}}</p>
                     <p><strong>Build Success:</strong> {{BUILD_SUCCESS}}</p>
                     <p><strong>Push Success:</strong> {{PUSH_SUCCESS}}</p>
-                    <p>Error Type: {{ERROR_TYPE}}</p>
+                    <p><strong>Error Type:</strong> {{ERROR_TYPE}}</p>
                     <p><strong>Detailed Message:</strong> {{DETAILED_MESSAGE}}</p>
                 </div>
 
