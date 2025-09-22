@@ -195,8 +195,8 @@ def getStartTemplate(String status) {
             <div class="content">
                 <p>Hello! A Jenkins pipeline has been {{STATUS_TEXT}}. Details:</p>
                 <div class="info-grid">
-                    <div class="info-label">Job</div><div class="info-value">{{JOB_NAME}}</div>
-                    <div class="info-label">Build</div><div class="info-value">#{{BUILD_NUMBER}}</div>
+                    <div class="info-label">Job</div><div class="info-value">{{JOB_NAME}}<div class="info-label">Build</div><div class="info-value">#{{BUILD_NUMBER}}</div></div>
+                    
                     <div class="info-label">Branch</div><div class="info-value">{{BRANCH}}</div>
                     <div class="info-label">Triggered By</div><div class="info-value">{{TRIGGERED_BY}}</div>
                 </div>
@@ -279,10 +279,6 @@ def getFailureTemplate(String status) {
                 <p>Unfortunately, the Jenkins pipeline has failed. Please review the details below:</p>
 
                 <div class="error-details">
-                    <h3>Failure Details</h3>
-                    <p><strong>Error Type:</strong> {{ERROR_TYPE}}</p>
-                    <p><strong>Message:</strong> {{DETAILED_MESSAGE}}</p>
-
                     <h3>Failure Details</h3>
                     <p><strong>Job:</strong> {{JOB_NAME}} #{{BUILD_NUMBER}}</p>
                     <p><strong>Branch:</strong> {{BRANCH}}</p>
