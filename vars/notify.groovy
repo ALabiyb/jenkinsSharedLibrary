@@ -2,7 +2,7 @@ def call(Map params = [:]) {
     // Required parameters with defaults
     def subject = params.get('subject', 'Jenkins Notification')
     def recipients = params.get('recipients', '')
-    def templateName = params.get('template', 'start.html')
+    def templateName = params.get('templateName', 'start.html')
     def data = params.get('data', [:])
 
     // Determine status from subject or data for color coding
@@ -262,6 +262,9 @@ def getFailureTemplate(String status) {
             .failure-badge { background:rgba(255,255,255,0.2); padding:8px 16px; border-radius:20px; display:inline-block; margin-bottom:10px; font-weight:bold; }
             .content { padding:30px; line-height:1.6; }
             .error-details { background:#f8d7da; border:1px solid #f5c6cb; border-radius:8px; padding:20px; margin:20px 0; }
+            .error-type { font-weight: bold; color: #721c24; margin-bottom: 10px; }
+            .error-message { color: #721c24; font-family: monospace; background: rgba(114, 28, 36, 0.1); padding: 10px; border-radius: 4px; }
+            .suggestions { background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 15px; margin: 20px 0; }
             .button { display:inline-block; background: linear-gradient(135deg, {{STATUS_COLOR}}, {{STATUS_COLOR}}CC); color:white; padding:12px 25px; text-decoration:none; border-radius:25px; font-weight:bold; margin:20px 0; }
         </style>
     </head>
@@ -273,10 +276,37 @@ def getFailureTemplate(String status) {
                 <p>Build #{{BUILD_NUMBER}} encountered an error</p>
             </div>
             <div class="content">
+                <p>Unfortunately, the Jenkins pipeline has failed. Please review the details below:</p>
+
                 <div class="error-details">
+                    <h3>Failure Details</h3>
                     <p><strong>Error Type:</strong> {{ERROR_TYPE}}</p>
                     <p><strong>Message:</strong> {{DETAILED_MESSAGE}}</p>
+
+                    <h3>Failure Details</h3>
+                    <p><strong>Job:</strong> {{JOB_NAME}} #{{BUILD_NUMBER}}</p>
+                    <p><strong>Branch:</strong> {{BRANCH}}</p>
+                    <p><strong>Build Success:</strong> {{BUILD_SUCCESS}}</p>
+                    <p><strong>Push Success:</strong> {{PUSH_SUCCESS}}</p>
+
+                    <div class="error-type">Error Type: {{ERROR_TYPE}}</div>
+                    <div class="error-message">{{ERROR_MESSAGE}}</div>
+
+                    <p><strong>Detailed Message:</strong> {{DETAILED_MESSAGE}}</p>
+
                 </div>
+
+                <div class="suggestions">
+                    <h4>💡 Suggested Actions</h4>
+                    <ul>
+                        <li>Check the build logs for detailed error information</li>
+                        <li>If this is a certificate error, consider using allowInsecureRegistry: true</li>
+                        <li>Verify your registry credentials are correct and not expired</li>
+                        <li>Ensure your registry is accessible from the Jenkins agent</li>
+                        <li>Contact your DevOps team if the issue persists</li>
+                    </ul>
+                </div>
+
                 <a href="{{BUILD_URL}}" class="button">🔍 View Logs</a>
             </div>
         </div>
