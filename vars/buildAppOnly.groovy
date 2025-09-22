@@ -45,14 +45,14 @@ def call(Map params = [:]) {
         return [
                 success: true,
                 imageName: fullImageName,
-                pushed: pushToRegistry
+                pushed: pushToRegistry,
             ]
     } catch (Exception e) {
         def errorMsg = "❌ Build failed: ${e.getMessage()}"
         echo errorMsg
-        // if (failOnError) {
-        //     error("Docker build failed: ${e.getMessage()}")
-        // }
+        if (failOnError) {
+            error("Docker build failed: ${e.getMessage()}")
+        }
         //error("Docker build failed: ${e.getMessage()}")
         return [
             success: false,

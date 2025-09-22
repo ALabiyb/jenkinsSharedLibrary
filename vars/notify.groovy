@@ -179,7 +179,7 @@ def getStartTemplate(String status) {
             .header { background: linear-gradient(135deg, {{STATUS_COLOR}}, {{STATUS_COLOR}}CC); color:white; padding:30px 20px; text-align:center; }
             .status-badge { background:rgba(255,255,255,0.2); padding:8px 16px; border-radius:20px; display:inline-block; margin-bottom:10px; font-weight:bold; }
             .content { padding:30px; line-height:1.6; }
-            .info-details { background: #00b1f733; border:1px solid #f5c6cb; border-radius:8px; padding:20px; margin:20px 0; }
+            .info-details { background: #00b1f733; border:1px solid #00b1f733; border-radius:8px; padding:20px; margin:20px 0; }
             .button { display:inline-block; background: linear-gradient(135deg, {{STATUS_COLOR}}, {{STATUS_COLOR}}CC); color:white; padding:12px 25px; text-decoration:none; border-radius:25px; font-weight:bold; margin:20px 0; }
         </style>
     </head>
