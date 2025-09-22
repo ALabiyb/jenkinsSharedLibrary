@@ -187,10 +187,10 @@ def getStartTemplate(String status) {
                 border-radius: 10px;
                 box-shadow: 0 4px 20px rgba(0,0,0,0.1);
                 overflow: hidden;
-                border: 3px solid {{STATUS_COLOR}};
+                border: 3px solid #007bff;
             }
             .header {
-                background: linear-gradient(135deg, {{STATUS_COLOR}}, rgba({{STATUS_COLOR}}, 0.8));
+                background: linear-gradient(135deg, #007bff, rgba(#007bff, 0.8));
                 color: white;
                 padding: 30px 20px;
                 text-align: center;
@@ -224,11 +224,11 @@ def getStartTemplate(String status) {
                 padding: 10px;
                 background-color: #f8f9fa;
                 border-radius: 5px;
-                border-left: 4px solid {{STATUS_COLOR}};
+                border-left: 4px solid #007bff;
             }
             .button {
                 display: inline-block;
-                background: linear-gradient(135deg, {{STATUS_COLOR}}, rgba({{STATUS_COLOR}}, 0.8));
+                background: linear-gradient(135deg, #007bff, rgba(#28a745, 0.8));
                 color: white;
                 padding: 12px 25px;
                 text-decoration: none;
