@@ -193,12 +193,17 @@ def getStartTemplate(String status) {
                 <p>Jenkins Build Notification</p>
             </div>
             <div class="content">
-                <p>Hello! A Jenkins pipeline has been {{STATUS_TEXT}}. Details:</p>
+                <p>Hello! A Jenkins pipeline has been {{STATUS_TEXT}}.</p>
+                <p><strong>Here are the details:</strong></p>
                 <div class="info-grid">
                     <div class="info-label">Job</div><div class="info-value">{{JOB_NAME}}<div class="info-label">Build</div><div class="info-value">#{{BUILD_NUMBER}}</div></div>
-                    
                     <div class="info-label">Branch</div><div class="info-value">{{BRANCH}}</div>
                     <div class="info-label">Triggered By</div><div class="info-value">{{TRIGGERED_BY}}</div>
+                    <p><strong>Job Name:</strong>{{JOB_NAME}}</p>
+                    <p><strong>Build Number:</strong> #{{BUILD_NUMBER}}</p>
+                    <p><strong>Branch:</strong> {{BRANCH}}</p>
+                    <p><strong>Triggered By:</strong> {{TRIGGERED_BY}}</p>
+                    <p><strong>Commit Message:</strong>{{GIT_COMMIT}}</p>
                 </div>
                 <a href="{{BUILD_URL}}" class="button">{{STATUS_ICON}} View Build</a>
             </div>
@@ -368,6 +373,7 @@ def sendFallbackNotification(String subject, String recipients, Map data, String
     Build: #${data.BUILD_NUMBER ?: 'Unknown'}
     Branch: ${data.BRANCH ?: 'Unknown'}
     Triggered by: ${data.TRIGGERED_BY ?: 'Unknown'}
+    Commit Message: ${data.GIT_COMMIT ?: 'N/A'}
 
     Error: ${data.ERROR_TYPE ?: 'None'}
     Message: ${data.DETAILED_MESSAGE ?: data.ERROR_MESSAGE ?: 'No details'}
