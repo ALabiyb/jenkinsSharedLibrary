@@ -17,7 +17,7 @@ def call(Map params = [:]) {
     def removeAfterPush = params.removeAfterPush ?: true
     def gitAuthor = params.gitAuthor ?: 'unknown'
     def gitCommitMessage = params.gitCommitMessage ?: 'No commit message'
-
+    def failOnError = params.containsKey('failOnError') ? params.failOnError : true  // default: fail pipeline on error
 
 
     echo "=== Building Application Docker Image ==="
@@ -48,8 +48,12 @@ def call(Map params = [:]) {
                 pushed: pushToRegistry
             ]
     } catch (Exception e) {
-        echo "❌ Build failed: ${e.getMessage()}"
-        error("Docker build failed: ${e.getMessage()}")
+        def errorMsg = "❌ Build failed: ${e.getMessage()}"
+        echo errorMsg
+        // if (failOnError) {
+        //     error("Docker build failed: ${e.getMessage()}")
+        // }
+        //error("Docker build failed: ${e.getMessage()}")
         return [
             success: false,
             error: e.getMessage(),

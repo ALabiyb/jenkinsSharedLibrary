@@ -1,14 +1,18 @@
-def call (Map params = [:]) {
+def call(Map params = [:]) {
     // Required parameters with defaults
     def subject = params.get('subject', 'Jenkins Notification')
     def recipients = params.get('recipients', '')
-    def templateName = params.get('templateName', 'start.html')
+    def templateName = params.get('template', 'start.html')
     def data = params.get('data', [:])
+
+    // Determine status from subject or data for color coding
+    def status = determineStatus(subject, data)
 
     echo "=== Sending Email Notification ==="
     echo "Subject: ${subject}"
     echo "Recipients: ${recipients}"
     echo "Template: ${templateName}"
+    echo "Status: ${status}"
     echo "Data keys: ${data.keySet()}"
 
     if (!recipients) {
@@ -17,15 +21,27 @@ def call (Map params = [:]) {
     }
 
     try {
-        // Load the email template
-        echo "Loading template: ${templateName}"
-        def template = getTemplateByName(templateName)
-
+        // Load the email template based on status
+        echo "Loading template: ${templateName} for status: ${status}"
+        def template = getTemplateByName(templateName, status)
 
         if (!template) {
             echo "❌ Template '${templateName}' is empty or not found"
-            // Fallback to a simple default template
-            template = getDefaultTemplate()
+            template = getDefaultTemplate(status)
+        }
+
+        // Add status-specific data
+        data.put('STATUS_COLOR', getStatusColor(status))
+        data.put('STATUS_ICON', getStatusIcon(status))
+        data.put('STATUS_TEXT', getStatusText(status))
+
+        // Add build details if available
+        if (data.BUILD_RESULT) {
+            def buildResult = data.BUILD_RESULT
+            data.put('BUILD_SUCCESS', buildResult.buildSuccess ?: false)
+            data.put('PUSH_SUCCESS', buildResult.pushSuccess ?: false)
+            data.put('ERROR_TYPE', buildResult.errorType ?: '')
+            data.put('DETAILED_MESSAGE', buildResult.message ?: '')
         }
 
         // Render the template with the provided data
@@ -37,7 +53,7 @@ def call (Map params = [:]) {
                 body: renderedTemplate,
                 to: recipients,
                 mimeType: 'text/html',
-                attachLog: false, // Set to true if you want to attach build logs
+                attachLog: status == 'FAILURE', // Attach logs only for failures
                 recipientProviders: [
                         [$class: 'DevelopersRecipientProvider'],
                         [$class: 'RequesterRecipientProvider']
@@ -48,19 +64,73 @@ def call (Map params = [:]) {
 
     } catch (Exception e) {
         echo "❌ Failed to send email notification: ${e.getMessage()}"
-        echo "Error details: ${e.toString()}"
 
-        // Try to send a simple fallback notification
         try {
-            sendFallbackNotification(subject, recipients, data)
+            sendFallbackNotification(subject, recipients, data, status)
         } catch (Exception fallbackError) {
             echo "❌ Fallback notification also failed: ${fallbackError.getMessage()}"
         }
 
-        // Don't fail the build for notification errors
         echo "⚠️  Continuing pipeline execution despite notification failure"
     }
+}
 
+/**
+ * Determine status from subject or data
+ */
+def determineStatus(String subject, Map data) {
+    def subjectLower = subject.toLowerCase()
+    def buildStatus = data.BUILD_STATUS?.toString()?.toUpperCase()
+
+    if (subjectLower.contains('failed') || subjectLower.contains('❌') || buildStatus == 'FAILED') {
+        return 'FAILURE'
+    } else if (subjectLower.contains('success') || subjectLower.contains('✅') || buildStatus == 'SUCCESS') {
+        return 'SUCCESS'
+    } else if (subjectLower.contains('started') || subjectLower.contains('🚀') || buildStatus == 'STARTED') {
+        return 'STARTED'
+    } else if (subjectLower.contains('warning') || subjectLower.contains('⚠️')) {
+        return 'WARNING'
+    }
+    return 'INFO'
+}
+
+/**
+ * Get status color
+ */
+def getStatusColor(String status) {
+    switch (status) {
+        case 'SUCCESS': return '#28a745'
+        case 'FAILURE': return '#dc3545'
+        case 'STARTED': return '#007bff'
+        case 'WARNING': return '#ffc107'
+        default: return '#6c757d'
+    }
+}
+
+/**
+ * Get status icon
+ */
+def getStatusIcon(String status) {
+    switch (status) {
+        case 'SUCCESS': return '✅'
+        case 'FAILURE': return '❌'
+        case 'STARTED': return '🚀'
+        case 'WARNING': return '⚠️'
+        default: return 'ℹ️'
+    }
+}
+
+/**
+ * Get status text
+ */
+def getStatusText(String status) {
+    switch (status) {
+        case 'SUCCESS': return 'Success'
+        case 'FAILURE': return 'Failed'
+        case 'STARTED': return 'Started'
+        case 'WARNING': return 'Warning'
+        default: return 'Info'
+    }
 }
 
 /**
@@ -69,7 +139,6 @@ def call (Map params = [:]) {
 def renderTemplate(String template, Map data) {
     def renderedTemplate = template
 
-    // Replace all placeholders in the format {{KEY}}
     data.each { key, value ->
         def placeholder = "{{${key}}}"
         def replacement = value?.toString() ?: "N/A"
@@ -77,105 +146,207 @@ def renderTemplate(String template, Map data) {
         echo "Replaced ${placeholder} with: ${replacement}"
     }
 
-    // Replace any remaining unreplaced placeholders with "N/A"
     renderedTemplate = renderedTemplate.replaceAll(/\{\{[^}]+\}\}/, "N/A")
-
     return renderedTemplate
 }
 
-
 /**
- * Get template by name (inline templates)
+ * Get template by name with status-aware styling
  */
-def getTemplateByName(String templateName) {
+def getTemplateByName(String templateName, String status) {
     def templates = [
-            'start.html': getStartTemplate(),
-            'success.html': getSuccessTemplate(),
-            'failure.html': getFailureTemplate(),
-            'fail.html': getFailureTemplate()  // Alias for failure
+            'start.html': getStartTemplate(status),
+            'success.html': getSuccessTemplate(status),
+            'failure.html': getFailureTemplate(status),
+            'warning.html': getWarningTemplate(status),
+            'fail.html': getFailureTemplate(status)
     ]
 
     return templates.get(templateName, null)
 }
 
 /**
- * Start template
+ * Enhanced Start template with dynamic colors
  */
-def getStartTemplate() {
+def getStartTemplate(String status) {
     return """
     <!DOCTYPE html>
     <html>
     <head>
         <style>
-            body { 
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-                margin: 0; 
+            body {
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                margin: 0;
                 padding: 20px;
-                background-color: #f5f5f5;
+                background-color: #f8f9fa;
             }
             .container {
                 max-width: 600px;
                 margin: 0 auto;
                 background-color: white;
-                border-radius: 8px;
-                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                border-radius: 10px;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.1);
                 overflow: hidden;
+                border: 3px solid {{STATUS_COLOR}};
             }
-            .header { 
-                background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+            .header {
+                background: linear-gradient(135deg, {{STATUS_COLOR}}, rgba({{STATUS_COLOR}}, 0.8));
                 color: white;
-                padding: 20px;
+                padding: 30px 20px;
                 text-align: center;
             }
-            .content { 
+            .status-badge {
+                background: rgba(255,255,255,0.2);
+                padding: 8px 16px;
+                border-radius: 20px;
+                display: inline-block;
+                margin-bottom: 10px;
+                font-weight: bold;
+            }
+            .content {
                 padding: 30px;
                 line-height: 1.6;
             }
-            .info-table {
-                width: 100%;
-                border-collapse: collapse;
+            .info-grid {
+                display: grid;
+                grid-template-columns: 150px 1fr;
+                gap: 15px;
                 margin: 20px 0;
             }
-            .info-table td {
-                padding: 12px 15px;
-                border-bottom: 1px solid #e0e0e0;
-            }
-            .info-table td:first-child {
+            .info-label {
                 font-weight: bold;
-                background-color: #f0f0f0;
-                width: 150px;
+                color: #495057;
+                background-color: #e9ecef;
+                padding: 10px;
+                border-radius: 5px;
+            }
+            .info-value {
+                padding: 10px;
+                background-color: #f8f9fa;
+                border-radius: 5px;
+                border-left: 4px solid {{STATUS_COLOR}};
             }
             .button {
                 display: inline-block;
-                background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+                background: linear-gradient(135deg, {{STATUS_COLOR}}, rgba({{STATUS_COLOR}}, 0.8));
                 color: white;
                 padding: 12px 25px;
                 text-decoration: none;
-                border-radius: 5px;
+                border-radius: 25px;
                 font-weight: bold;
                 margin: 20px 0;
+                transition: transform 0.2s;
+            }
+            .button:hover {
+                transform: translateY(-2px);
+            }
+            .footer {
+                background-color: #f8f9fa;
+                padding: 20px;
+                text-align: center;
+                color: #6c757d;
+                font-size: 12px;
             }
         </style>
     </head>
     <body>
         <div class="container">
             <div class="header">
-                <h1>🚀 Pipeline Started</h1>
+                <div class="status-badge">{{STATUS_ICON}} {{STATUS_TEXT}}</div>
+                <h1>Pipeline {{STATUS_TEXT}}</h1>
                 <p>Jenkins Build Notification</p>
             </div>
-            
+
             <div class="content">
                 <p>Hello!</p>
-                <p>A new Jenkins pipeline has been started. Here are the details:</p>
-                
-                <table class="info-table">
-                    <tr><td>Job Name</td><td>{{JOB_NAME}}</td></tr>
-                    <tr><td>Build Number</td><td>#{{BUILD_NUMBER}}</td></tr>
-                    <tr><td>Branch</td><td>{{BRANCH}}</td></tr>
-                    <tr><td>Triggered By</td><td>{{TRIGGERED_BY}}</td></tr>
-                    <tr><td>Commit</td><td>{{GIT_COMMIT}}</td></tr>
-                </table>
-                
+                <p>A Jenkins pipeline has been {{STATUS_TEXT}}. Here are the details:</p>
+
+                <div class="info-grid">
+                    <div class="info-label">Job Name</div>
+                    <div class="info-value">{{JOB_NAME}}</div>
+
+                    <div class="info-label">Build Number</div>
+                    <div class="info-value">#{{BUILD_NUMBER}}</div>
+
+                    <div class="info-label">Branch</div>
+                    <div class="info-value">{{BRANCH}}</div>
+
+                    <div class="info-label">Triggered By</div>
+                    <div class="info-value">{{TRIGGERED_BY}}</div>
+
+                    <div class="info-label">Git Author</div>
+                    <div class="info-value">{{GIT_AUTHOR}}</div>
+
+                    <div class="info-label">Commit Message</div>
+                    <div class="info-value">{{GIT_COMMIT}}</div>
+                </div>
+
+                <a href="{{BUILD_URL}}" class="button">{{STATUS_ICON}} View Build Details</a>
+            </div>
+
+            <div class="footer">
+                <p>Automated notification from Jenkins CI/CD Pipeline</p>
+                <p>{{CHANGE_TYPES}} changes detected</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+}
+
+/**
+ * Enhanced Success template
+ */
+def getSuccessTemplate(String status) {
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background-color: #f8f9fa; }
+            .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); overflow: hidden; border: 3px solid #28a745; }
+            .header { background: linear-gradient(135deg, #28a745, #20c997); color: white; padding: 30px 20px; text-align: center; }
+            .content { padding: 30px; line-height: 1.6; }
+            .success-badge { background: rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px; display: inline-block; margin-bottom: 10px; font-weight: bold; }
+            .build-details { background: #d4edda; border: 1px solid #c3e6cb; border-radius: 8px; padding: 20px; margin: 20px 0; }
+            .metric { display: inline-block; margin: 10px 15px; text-align: center; }
+            .metric-value { font-size: 24px; font-weight: bold; color: #28a745; }
+            .metric-label { font-size: 12px; color: #6c757d; }
+            .button { display: inline-block; background: linear-gradient(135deg, #28a745, #20c997); color: white; padding: 12px 25px; text-decoration: none; border-radius: 25px; font-weight: bold; margin: 20px 0; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <div class="success-badge">✅ Success</div>
+                <h1>Pipeline Completed Successfully!</h1>
+                <p>🎉 Build #{{BUILD_NUMBER}} finished without errors</p>
+            </div>
+
+            <div class="content">
+                <p>Great news! The pipeline completed successfully.</p>
+
+                <div class="build-details">
+                    <h3>Build Summary</h3>
+                    <p><strong>Job:</strong> {{JOB_NAME}} #{{BUILD_NUMBER}}</p>
+                    <p><strong>Branch:</strong> {{BRANCH}}</p>
+                    <p><strong>Image:</strong> {{IMAGE_NAME}}</p>
+                    <p><strong>Build Success:</strong> {{BUILD_SUCCESS}}</p>
+                    <p><strong>Push Success:</strong> {{PUSH_SUCCESS}}</p>
+                    <p><strong>Message:</strong> {{DETAILED_MESSAGE}}</p>
+                </div>
+
+                <div style="text-align: center;">
+                    <div class="metric">
+                        <div class="metric-value">{{BUILD_NUMBER}}</div>
+                        <div class="metric-label">BUILD NUMBER</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value">✅</div>
+                        <div class="metric-label">STATUS</div>
+                    </div>
+                </div>
+
                 <a href="{{BUILD_URL}}" class="button">View Build Details</a>
             </div>
         </div>
@@ -185,32 +356,62 @@ def getStartTemplate() {
 }
 
 /**
- * Success template
+ * Enhanced Failure template with detailed error information
  */
-def getSuccessTemplate() {
+def getFailureTemplate(String status) {
     return """
     <!DOCTYPE html>
     <html>
     <head>
         <style>
-            body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5; }
-            .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); overflow: hidden; }
-            .header { background: linear-gradient(135deg, #28a745, #20c997); color: white; padding: 20px; text-align: center; }
-            .content { padding: 30px; }
-            .success { color: #28a745; font-weight: bold; }
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background-color: #f8f9fa; }
+            .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); overflow: hidden; border: 3px solid #dc3545; }
+            .header { background: linear-gradient(135deg, #dc3545, #c82333); color: white; padding: 30px 20px; text-align: center; }
+            .content { padding: 30px; line-height: 1.6; }
+            .failure-badge { background: rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px; display: inline-block; margin-bottom: 10px; font-weight: bold; }
+            .error-details { background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 8px; padding: 20px; margin: 20px 0; }
+            .error-type { font-weight: bold; color: #721c24; margin-bottom: 10px; }
+            .error-message { color: #721c24; font-family: monospace; background: rgba(114, 28, 36, 0.1); padding: 10px; border-radius: 4px; }
+            .suggestions { background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 15px; margin: 20px 0; }
+            .button { display: inline-block; background: linear-gradient(135deg, #dc3545, #c82333); color: white; padding: 12px 25px; text-decoration: none; border-radius: 25px; font-weight: bold; margin: 20px 0; }
         </style>
     </head>
     <body>
         <div class="container">
             <div class="header">
-                <h1>✅ Pipeline Successful</h1>
+                <div class="failure-badge">❌ Failed</div>
+                <h1>Pipeline Failed</h1>
+                <p>Build #{{BUILD_NUMBER}} encountered an error</p>
             </div>
+
             <div class="content">
-                <p>Great news! The pipeline completed <span class="success">successfully</span>.</p>
-                <p><strong>Job:</strong> {{JOB_NAME}} #{{BUILD_NUMBER}}</p>
-                <p><strong>Duration:</strong> {{BUILD_DURATION}}</p>
-                <p><strong>Branch:</strong> {{BRANCH}}</p>
-                <p><a href="{{BUILD_URL}}">View Build Details</a></p>
+                <p>The pipeline has failed. Please review the details below:</p>
+
+                <div class="error-details">
+                    <h3>Failure Details</h3>
+                    <p><strong>Job:</strong> {{JOB_NAME}} #{{BUILD_NUMBER}}</p>
+                    <p><strong>Branch:</strong> {{BRANCH}}</p>
+                    <p><strong>Build Success:</strong> {{BUILD_SUCCESS}}</p>
+                    <p><strong>Push Success:</strong> {{PUSH_SUCCESS}}</p>
+
+                    <div class="error-type">Error Type: {{ERROR_TYPE}}</div>
+                    <div class="error-message">{{ERROR_MESSAGE}}</div>
+
+                    <p><strong>Detailed Message:</strong> {{DETAILED_MESSAGE}}</p>
+                </div>
+
+                <div class="suggestions">
+                    <h4>💡 Suggested Actions</h4>
+                    <ul>
+                        <li>Check the build logs for detailed error information</li>
+                        <li>If this is a certificate error, consider using allowInsecureRegistry: true</li>
+                        <li>Verify your registry credentials are correct and not expired</li>
+                        <li>Ensure your registry is accessible from the Jenkins agent</li>
+                        <li>Contact your DevOps team if the issue persists</li>
+                    </ul>
+                </div>
+
+                <a href="{{BUILD_URL}}" class="button">🔍 View Build Logs</a>
             </div>
         </div>
     </body>
@@ -219,56 +420,85 @@ def getSuccessTemplate() {
 }
 
 /**
- * Failure template
+ * Warning template for partial failures
  */
-def getFailureTemplate() {
+def getWarningTemplate(String status) {
     return """
     <!DOCTYPE html>
     <html>
     <head>
         <style>
-            body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5; }
-            .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); overflow: hidden; }
-            .header { background: linear-gradient(135deg, #dc3545, #c82333); color: white; padding: 20px; text-align: center; }
-            .content { padding: 30px; }
-            .failure { color: #dc3545; font-weight: bold; }
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background-color: #f8f9fa; }
+            .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); overflow: hidden; border: 3px solid #ffc107; }
+            .header { background: linear-gradient(135deg, #ffc107, #e0a800); color: #212529; padding: 30px 20px; text-align: center; }
+            .content { padding: 30px; line-height: 1.6; }
+            .warning-badge { background: rgba(33, 37, 41, 0.1); padding: 8px 16px; border-radius: 20px; display: inline-block; margin-bottom: 10px; font-weight: bold; }
+            .warning-details { background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 20px; margin: 20px 0; }
+            .button { display: inline-block; background: linear-gradient(135deg, #ffc107, #e0a800); color: #212529; padding: 12px 25px; text-decoration: none; border-radius: 25px; font-weight: bold; margin: 20px 0; }
         </style>
     </head>
     <body>
         <div class="container">
             <div class="header">
-                <h1>❌ Pipeline Failed</h1>
+                <div class="warning-badge">⚠️ Warning</div>
+                <h1>Pipeline Completed with Warnings</h1>
+                <p>Build succeeded but with issues</p>
             </div>
+
             <div class="content">
-                <p>The pipeline has <span class="failure">failed</span>. Please check the details below:</p>
-                <p><strong>Job:</strong> {{JOB_NAME}} #{{BUILD_NUMBER}}</p>
-                <p><strong>Branch:</strong> {{BRANCH}}</p>
-                <p><strong>Failure Reason:</strong> {{FAILURE_REASON}}</p>
-                <p><a href="{{BUILD_URL}}">View Build Logs</a></p>
+                <p>The pipeline completed successfully but encountered some issues:</p>
+
+                <div class="warning-details">
+                    <h3>Warning Details</h3>
+                    <p><strong>Job:</strong> {{JOB_NAME}} #{{BUILD_NUMBER}}</p>
+                    <p><strong>Branch:</strong> {{BRANCH}}</p>
+                    <p><strong>Build Success:</strong> {{BUILD_SUCCESS}}</p>
+                    <p><strong>Push Success:</strong> {{PUSH_SUCCESS}}</p>
+                    <p><strong>Warning Type:</strong> {{ERROR_TYPE}}</p>
+                    <p><strong>Message:</strong> {{DETAILED_MESSAGE}}</p>
+                </div>
+
+                <a href="{{BUILD_URL}}" class="button">Review Details</a>
             </div>
         </div>
     </body>
     </html>
     """
+}
+
+/**
+ * Default template fallback
+ */
+def getDefaultTemplate(String status) {
+    return getStartTemplate(status)
 }
 
 /**
  * Send a simple fallback notification if the main template fails
  */
-def sendFallbackNotification(String subject, String recipients, Map data) {
-    echo "Attempting fallback notification..."
+def sendFallbackNotification(String subject, String recipients, Map data, String status) {
+    echo "Attempting fallback notification for status: ${status}"
+
+    def statusIcon = getStatusIcon(status)
+    def statusColor = getStatusColor(status)
 
     def simpleBody = """
-    Jenkins Pipeline Notification
-    
+    Jenkins Pipeline Notification ${statusIcon}
+
+    Status: ${status}
     Job: ${data.JOB_NAME ?: 'Unknown'}
     Build: #${data.BUILD_NUMBER ?: 'Unknown'}
     Branch: ${data.BRANCH ?: 'Unknown'}
-    Status: ${data.BUILD_STATUS ?: 'Unknown'}
     Triggered by: ${data.TRIGGERED_BY ?: 'Unknown'}
-    
+
+    Build Details:
+    - Build Success: ${data.BUILD_SUCCESS ?: 'Unknown'}
+    - Push Success: ${data.PUSH_SUCCESS ?: 'Unknown'}
+    - Error Type: ${data.ERROR_TYPE ?: 'None'}
+    - Message: ${data.DETAILED_MESSAGE ?: data.ERROR_MESSAGE ?: 'No details available'}
+
     Build URL: ${data.BUILD_URL ?: 'Unknown'}
-    
+
     This is a fallback notification sent because the HTML template failed to load.
     """
 
