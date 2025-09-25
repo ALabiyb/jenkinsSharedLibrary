@@ -54,6 +54,7 @@ def call(Map params = [:]) {
                 to: recipients,
                 mimeType: 'text/html',
                 attachLog: status == 'FAILURE', // Attach logs only for failures
+                attachmentsPattern: data.TRIVY_REPORT_FILE ?: '', // Attach Trivy report if available
                 recipientProviders: [
                         [$class: 'DevelopersRecipientProvider'],
                         [$class: 'RequesterRecipientProvider']
@@ -159,7 +160,8 @@ def getTemplateByName(String templateName, String status) {
             'success.html': getSuccessTemplate(status),
             'failure.html': getFailureTemplate(status),
             'warning.html': getWarningTemplate(status),
-            'fail.html': getFailureTemplate(status)
+            'fail.html': getFailureTemplate(status),
+            'trivy.html': getTrivyTemplate(status),
     ]
 
     return templates.get(templateName, null)
@@ -238,6 +240,40 @@ def getSuccessTemplate(String status) {
                     <p><strong>Job:</strong> {{JOB_NAME}} #{{BUILD_NUMBER}}</p>
                     <p><strong>Branch:</strong> {{BRANCH}}</p>
                     <p><strong>Image:</strong> {{IMAGE_NAME}}</p>
+                </div>
+                <a href="{{BUILD_URL}}" class="button">View Build</a>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+}
+
+/**
+ * Dynamic Trivy Scan template
+ */
+def getTrivyTemplate(String status) {
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            body { font-family:'Segoe UI',sans-serif; margin:0; padding:20px; background:#f8f9fa; }
+            .container { max-width:600px; margin:0 auto; background:white; border-radius:10px; border:3px solid {{STATUS_COLOR}}; box-shadow:0 4px 20px rgba(0,0,0,0.1); }
+            .header { background: linear-gradient(135deg, {{STATUS_COLOR}}, {{STATUS_COLOR}}CC); color:white; padding:30px 20px; text-align:center; }
+            .content { padding:30px; line-height:1.6; }
+            .scan-details { background:#e2e3e5; border:1px solid #d6d8db; border-radius:8px; padding:20px; margin:20px 0; font-family:monospace; font-size:13px; white-space:pre; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>Trivy Scan Report</h1>
+                <p>Image: {{IMAGE_NAME}}</p>
+            </div>
+            <div class="content">
+                <div class="scan-details">
+                    {{TRIVY_SCAN_RESULT}}
                 </div>
                 <a href="{{BUILD_URL}}" class="button">View Build</a>
             </div>
