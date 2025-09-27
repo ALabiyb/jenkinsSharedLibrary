@@ -46,6 +46,7 @@ def call(Map params = [:]) {
 
         // Render the template with the provided data
         def renderedTemplate = renderTemplate(template, data)
+        def attachments = data.TRIVY_REPORT_FILE ? data.TRIVY_REPORT : ''
 
         // Send the email notification
         emailext(
@@ -54,7 +55,7 @@ def call(Map params = [:]) {
                 to: recipients,
                 mimeType: 'text/html',
                 attachLog: status == 'FAILURE', // Attach logs only for failures
-                attachmentsPattern: data.TRIVY_REPORT_FILE ?: '', // Attach Trivy report if available
+                attachmentsPattern: attachments, // Attach Trivy report if available
                 recipientProviders: [
                         [$class: 'DevelopersRecipientProvider'],
                         [$class: 'RequesterRecipientProvider']
