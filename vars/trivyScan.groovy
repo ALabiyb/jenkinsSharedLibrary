@@ -16,7 +16,8 @@ def call(Map params = [:]) {
     echo "Scanning image: ${imageName} with Trivy..."
 
     int exitCode = sh(
-        script: "trivy image --no-progress --severity ${severity} --format ${format} ${imageName} > ${outputFile} 2>&1",
+        // script: "trivy image --no-progress --severity ${severity} --format ${format} ${imageName} > ${outputFile} 2>&1",
+        script: "trivy image --severity ${severity} --format ${format} ${imageName} > ${outputFile} 2>&1",
         returnStatus: true
     )
 
