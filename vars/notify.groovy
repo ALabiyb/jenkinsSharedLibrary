@@ -163,6 +163,7 @@ def getTemplateByName(String templateName, String status) {
             'warning.html': getWarningTemplate(status),
             'fail.html': getFailureTemplate(status),
             'trivy.html': getTrivyTemplate(status),
+            'quality-gate-failure.html': getQualityGateFailureTemplate(status)
     ]
 
     return templates.get(templateName, null)
@@ -277,6 +278,38 @@ def getTrivyTemplate(String status) {
                     {{TRIVY_SCAN_RESULT}}
                 </div>
                 <a href="{{BUILD_URL}}" class="button">View Build</a>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+}
+
+
+/**
+ * Quality Gate Failure template
+ */
+def getQualityGateFailureTemplate(String status) {
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            body { font-family:'Segoe UI',sans-serif; margin:0; padding:20px; background:#f8f9fa; }
+            .container { max-width:600px; margin:0 auto; background:white; border-radius:10px; border:3px solid #dc3545; }
+            .header { background: #dc3545; color:white; padding:30px 20px; text-align:center; }
+            .content { padding:30px; line-height:1.6; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>Quality Gate Failed</h1>
+            </div>
+            <div class="content">
+                <p><strong>Job:</strong> {{JOB_NAME}} #{{BUILD_NUMBER}}</p>
+                <p><strong>Status:</strong> {{QUALITY_GATE_STATUS}}</p>
+                <a href="{{BUILD_URL}}">View Build</a>
             </div>
         </div>
     </body>

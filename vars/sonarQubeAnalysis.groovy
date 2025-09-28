@@ -59,6 +59,8 @@ def call(Map params = [:]) {
             }
         }
         
+        env.SONAR_ANALYSIS_SUCCESS = 'true'
+        env.SONAR_PROJECT_KEY = 'todoAPI'
         echo "✅ SonarQube analysis completed successfully"
         
         // Return success result
